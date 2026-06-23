@@ -291,8 +291,15 @@ def get_model_files():
     return joblib_files
 
 @st.cache_resource
-def load_model(model_path):
-    return joblib.load(model_path)
+def load_all_models(model_files):
+    """Memuat semua model dari daftar file yang diberikan"""
+    models = {}
+    for file_path in model_files:
+        try:
+            models[file_path] = joblib.load(file_path)
+        except Exception as e:
+            st.error(f"Gagal memuat model {os.path.basename(file_path)}: {e}")
+    return models
 
 def read_uploaded_file(uploaded_file):
     file_name = uploaded_file.name.lower()
@@ -449,7 +456,7 @@ st.sidebar.markdown("""
 """, unsafe_allow_html=True)
 
 # =====================================================
-# MODEL LOADING - BACA SEMUA FILE .joblib DI FOLDER model
+# MODEL LOADING - MENGGUNAKAN load_all_models
 # =====================================================
 
 model_files = get_model_files()
@@ -464,9 +471,16 @@ if len(model_files) == 0:
     """)
     st.stop()
 
+# Load semua model sekaligus
+all_models = load_all_models(model_files)
+
+if len(all_models) == 0:
+    st.sidebar.error("Gagal memuat semua model. Periksa file model Anda.")
+    st.stop()
+
 # Buat daftar nama model yang akan ditampilkan di dropdown
 model_display_names = []
-for file_path in model_files:
+for file_path in all_models.keys():
     file_name = os.path.basename(file_path)
     # Buat nama tampilan yang lebih bersih
     display_name = file_name.replace('.joblib', '').replace('modellb_', 'Model ')
@@ -482,27 +496,22 @@ selected_model_display = st.sidebar.selectbox(
 
 # Dapatkan path file yang sesuai
 selected_index = model_display_names.index(selected_model_display)
-selected_model_path = model_files[selected_index]
+selected_model_path = list(all_models.keys())[selected_index]
+model = all_models[selected_model_path]
 
-# Load model yang dipilih
-try:
-    model = load_model(selected_model_path)
-    st.sidebar.markdown(f"""
-    <div class="metric-box">
-        <div style="font-size: 2rem;">✓</div>
-        <div style="color: #FFD700; font-weight: bold;">Model Aktif</div>
-        <div style="font-size: 0.7rem; color: rgba(255,255,255,0.6);">{os.path.basename(selected_model_path)}</div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Coba dapatkan feature names dari model
-    model_features = get_model_feature_names(model)
-    if model_features:
-        st.sidebar.info(f"Model membutuhkan {len(model_features)} fitur")
-    
-except Exception as e:
-    st.sidebar.error(f"Gagal memuat model: {e}")
-    st.stop()
+# Tampilkan informasi model aktif
+st.sidebar.markdown(f"""
+<div class="metric-box">
+    <div style="font-size: 2rem;">✓</div>
+    <div style="color: #FFD700; font-weight: bold;">Model Aktif</div>
+    <div style="font-size: 0.7rem; color: rgba(255,255,255,0.6);">{os.path.basename(selected_model_path)}</div>
+</div>
+""", unsafe_allow_html=True)
+
+# Coba dapatkan feature names dari model
+model_features = get_model_feature_names(model)
+if model_features:
+    st.sidebar.info(f"Model membutuhkan {len(model_features)} fitur")
 
 st.sidebar.markdown('<div class="gold-divider"></div>', unsafe_allow_html=True)
 
