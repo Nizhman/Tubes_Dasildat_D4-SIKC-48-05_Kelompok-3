@@ -84,7 +84,7 @@ def add_luxury_css():
             content: '✦';
             position: absolute;
             bottom: 20px;
-            right: 20px;
+            left: 20px;
             font-size: 2rem;
             color: rgba(255,215,0,0.3);
             animation: floatText 3s ease-in-out infinite reverse;
@@ -98,11 +98,27 @@ def add_luxury_css():
             font-size: 2.5rem;
             font-weight: 800;
             font-family: 'Cormorant Garamond', serif;
+            margin-bottom: 0.5rem;
+        }
+        
+        .gold-header h2 {
+            color: rgba(255,255,255,0.9);
+            font-size: 1.3rem;
+            font-weight: 400;
+            font-family: 'Montserrat', sans-serif;
+            margin-bottom: 0.5rem;
         }
         
         .gold-header p {
             color: rgba(255,255,255,0.8);
             font-size: 1rem;
+        }
+        
+        .gold-header .subtitle {
+            color: rgba(255,215,0,0.8);
+            font-size: 0.9rem;
+            font-weight: 300;
+            letter-spacing: 1px;
         }
         
         .luxury-badge {
@@ -227,6 +243,17 @@ def add_luxury_css():
             padding: 1rem;
             margin: 1rem 0;
         }
+        
+        .team-member {
+            color: rgba(255,255,255,0.85);
+            font-size: 0.9rem;
+            padding: 0.3rem 0;
+            border-bottom: 1px solid rgba(255,215,0,0.1);
+        }
+        
+        .team-member:last-child {
+            border-bottom: none;
+        }
     </style>
     """, unsafe_allow_html=True)
 
@@ -253,14 +280,15 @@ FEATURE_NAMES = [
 ]
 
 def get_model_files():
+    """Mendapatkan semua file model .joblib dari folder model"""
     model_folder = "model"
     if not os.path.exists(model_folder):
         os.makedirs(model_folder)
+        return []
     
+    # Cari semua file .joblib di folder model
     joblib_files = glob.glob(os.path.join(model_folder, "*.joblib"))
-    pkl_files = glob.glob(os.path.join(model_folder, "*.pkl"))
-
-    return joblib_files + pkl_files
+    return joblib_files
 
 @st.cache_resource
 def load_model(model_path):
@@ -393,9 +421,16 @@ def plot_confusion_matrix_heatmap(cm):
 # Header
 st.markdown("""
 <div class="gold-header">
-    <div class="luxury-badge">PRESENTED BY Kelompok 3</div>
-    <h1>STUDENT PERFORMANCE PREDICTION SYSTEM</h1>
-    <p>Powered by Advanced Machine Learning | Classification & Regression Analysis</p>
+    <div class="luxury-badge">PRESENTED BY KELOMPOK 3</div>
+    <h1>Klasifikasi Performa Akademik dan Prediksi Nilai Matematika</h1>
+    <h2>Menggunakan Algoritma Machine Learning pada Dataset Student Performance</h2>
+    <div class="gold-divider" style="max-width: 300px; margin: 1rem auto;"></div>
+    <div style="max-width: 600px; margin: 0 auto; padding: 0.5rem;">
+        <div class="team-member">Muhamad Nizar Rahman – 707012400056</div>
+        <div class="team-member">Rhajasya Putra Ansar – 707012400090</div>
+        <div class="team-member">Marvel Callysa Rorong – 707012400020</div>
+        <div class="team-member">Revalina Syakira - 707012000150</div>
+    </div>
     <div style="margin-top: 1rem;">
         <span style="color: #FFD700;">★</span> Enterprise Edition 
         <span style="color: #FFD700;">★</span> 99.9% Accuracy 
@@ -413,45 +448,72 @@ st.sidebar.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+# =====================================================
+# MODEL LOADING - BACA SEMUA FILE .joblib DI FOLDER model
+# =====================================================
+
 model_files = get_model_files()
 
 if len(model_files) == 0:
-    st.sidebar.warning("No model files found. Please add a model to the 'model' folder.")
-    st.info("How to add a model:\n1. Create a 'model' folder in the same directory\n2. Place your .joblib or .pkl model file in the folder\n3. Refresh the page")
+    st.sidebar.warning("Tidak ada model yang ditemukan di folder 'model'.")
+    st.info("""
+    **Cara menambahkan model:**
+    1. Buat folder 'model' di direktori yang sama
+    2. Tempatkan file model .joblib di folder tersebut
+    3. Refresh halaman
+    """)
     st.stop()
 
-model_names = [os.path.basename(file) for file in model_files]
-selected_model_name = st.sidebar.selectbox("Select Prediction Model", model_names)
-selected_model_path = model_files[model_names.index(selected_model_name)]
+# Buat daftar nama model yang akan ditampilkan di dropdown
+model_display_names = []
+for file_path in model_files:
+    file_name = os.path.basename(file_path)
+    # Buat nama tampilan yang lebih bersih
+    display_name = file_name.replace('.joblib', '').replace('modellb_', 'Model ')
+    display_name = display_name.replace('_StudentPerformance', '')
+    display_name = display_name.replace('_', ' - ')
+    model_display_names.append(display_name)
 
+# Pilih model dari daftar yang tersedia
+selected_model_display = st.sidebar.selectbox(
+    "Pilih Model Prediksi", 
+    model_display_names
+)
+
+# Dapatkan path file yang sesuai
+selected_index = model_display_names.index(selected_model_display)
+selected_model_path = model_files[selected_index]
+
+# Load model yang dipilih
 try:
     model = load_model(selected_model_path)
     st.sidebar.markdown(f"""
     <div class="metric-box">
-        <div style="font-size: 2rem;"></div>
-        <div style="color: #FFD700; font-weight: bold;">Model Active</div>
-        <div style="font-size: 0.8rem;">{selected_model_name}</div>
+        <div style="font-size: 2rem;">✓</div>
+        <div style="color: #FFD700; font-weight: bold;">Model Aktif</div>
+        <div style="font-size: 0.7rem; color: rgba(255,255,255,0.6);">{os.path.basename(selected_model_path)}</div>
     </div>
     """, unsafe_allow_html=True)
     
+    # Coba dapatkan feature names dari model
     model_features = get_model_feature_names(model)
     if model_features:
-        st.sidebar.info(f"Model expects {len(model_features)} features")
+        st.sidebar.info(f"Model membutuhkan {len(model_features)} fitur")
     
 except Exception as e:
-    st.sidebar.error(f"Model Failed to Load: {e}")
+    st.sidebar.error(f"Gagal memuat model: {e}")
     st.stop()
 
 st.sidebar.markdown('<div class="gold-divider"></div>', unsafe_allow_html=True)
 
 analysis_type = st.sidebar.radio(
-    "Analysis Type",
-    ["Manual Prediction", "Batch Prediction"]
+    "Jenis Analisis",
+    ["Prediksi Manual", "Prediksi Batch"]
 )
 
-if analysis_type == "Batch Prediction":
+if analysis_type == "Prediksi Batch":
     metrics_type = st.sidebar.radio(
-        "Metrics Analysis",
+        "Analisis Metrik",
         ["Classification Metrics", "Regression Metrics"]
     )
 
@@ -466,16 +528,17 @@ st.sidebar.markdown("""
 # MANUAL PREDICTION
 # =====================================================
 
-if analysis_type == "Manual Prediction":
+if analysis_type == "Prediksi Manual":
     st.markdown("""
     <div class="luxury-card">
-        <h2 style="color: #FFD700;">Individual Prediction</h2>
-        <p style="color: rgba(255,255,255,0.7);">Premium analysis for single student evaluation</p>
+        <h2 style="color: #FFD700;">Prediksi Individual</h2>
+        <p style="color: rgba(255,255,255,0.7);">Analisis premium untuk evaluasi siswa tunggal</p>
     </div>
     """, unsafe_allow_html=True)
     
     model_features = get_model_feature_names(model)
     
+    # Deteksi tipe model (classification atau regression)
     try:
         test_input = pd.DataFrame([[0.0] * len(model_features)], columns=model_features)
         test_pred = model.predict(test_input)[0]
@@ -484,10 +547,10 @@ if analysis_type == "Manual Prediction":
         is_classification = True
     
     if is_classification:
-        st.info(f"Model Type: Classification (expects {len(model_features)} features)")
+        st.info(f"Tipe Model: Classification (membutuhkan {len(model_features)} fitur)")
         manual_method = "Classification (Good/Bad Performance)"
     else:
-        st.info(f"Model Type: Regression (expects {len(model_features)} features)")
+        st.info(f"Tipe Model: Regression (membutuhkan {len(model_features)} fitur)")
         manual_method = "Regression (Score Prediction)"
     
     st.markdown('<div class="gold-divider"></div>', unsafe_allow_html=True)
@@ -603,9 +666,6 @@ if analysis_type == "Manual Prediction":
                 """, unsafe_allow_html=True)
                 
                 # Tentukan threshold untuk Good/Bad dalam skala scaled
-                # Asumsikan threshold 70 dalam skala 0-100 setara dengan nilai scaled tertentu
-                # Jika data discaling dengan StandardScaler, nilai 70 dalam skala asli mungkin setara dengan nilai scaled tertentu
-                # Untuk sementara, gunakan threshold 0 (mean) sebagai batas
                 threshold = 0
                 
                 if predicted_score >= threshold:
@@ -672,7 +732,7 @@ if analysis_type == "Manual Prediction":
 # BATCH PREDICTION
 # =====================================================
 
-elif analysis_type == "Batch Prediction":
+elif analysis_type == "Prediksi Batch":
     st.markdown("""
     <div class="luxury-card">
         <h2 style="color: #FFD700;">Enterprise Batch Processing</h2>
@@ -700,7 +760,7 @@ elif analysis_type == "Batch Prediction":
             with col2:
                 st.markdown(f'<div class="metric-box"><h4>Features</h4><div class="stat-number">{df.shape[1]}</div></div>', unsafe_allow_html=True)
             with col3:
-                st.markdown(f'<div class="metric-box"><h4>Active Model</h4><div class="stat-number">{selected_model_name[:15]}</div></div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="metric-box"><h4>Active Model</h4><div class="stat-number">{selected_model_display[:15]}</div></div>', unsafe_allow_html=True)
 
             model_features = get_model_feature_names(model)
             
@@ -865,19 +925,17 @@ elif analysis_type == "Batch Prediction":
                                 )
                             
                             elif metrics_type == "Regression Metrics" and not is_classification:
-                                # REGRESSION - SESUAI DENGAN SKALA DATASET (TANPA KONVERSI KE 0-100)
+                                # REGRESSION
                                 predictions_reg = predictions
                                 result_df = df.copy()
                                 result_df["prediction_scaled"] = predictions_reg
                                 
-                                # Untuk kategorisasi Good/Bad, gunakan threshold 0 (mean dari data scaled)
                                 threshold = 0
                                 
                                 good_count = (predictions_reg >= threshold).sum()
                                 bad_count = (predictions_reg < threshold).sum()
                                 total = good_count + bad_count
                                 
-                                # TAMPILKAN INFORMASI PREDIKSI
                                 st.markdown('<div class="gold-divider"></div>', unsafe_allow_html=True)
                                 st.markdown('<div class="luxury-card"><h3 style="color: #FFD700;">Prediction Results (Scaled Values)</h3></div>', unsafe_allow_html=True)
                                 
@@ -891,7 +949,6 @@ elif analysis_type == "Batch Prediction":
                                 with col_stat4:
                                     st.markdown(f'<div class="metric-box"><h4>Median Value</h4><div class="stat-number">{np.median(predictions_reg):.4f}</div></div>', unsafe_allow_html=True)
                                 
-                                # Histogram distribusi prediksi
                                 fig_hist, ax_hist = plt.subplots(figsize=(8, 5))
                                 ax_hist.hist(predictions_reg, bins=20, color='#FFD700', alpha=0.7, edgecolor='white', linewidth=1.5)
                                 ax_hist.axvline(x=threshold, color='#FF6B6B', linestyle='--', linewidth=2, label=f'Threshold ({threshold})')
@@ -909,12 +966,9 @@ elif analysis_type == "Batch Prediction":
                                 plt.tight_layout()
                                 st.pyplot(fig_hist)
                                 
-                                # Regression Metrics
                                 st.markdown('<div class="gold-divider"></div>', unsafe_allow_html=True)
                                 st.markdown('<div class="luxury-card"><h3 style="color: #FFD700;">Regression Metrics</h3></div>', unsafe_allow_html=True)
                                 
-                                # Cari kolom yang berisi nilai target (math score dalam skala scaled)
-                                # Dataset Anda sudah di-scaling, jadi gunakan kolom 'math score' yang sudah scaled
                                 target_column = 'math score'
                                 
                                 if target_column in df.columns:
@@ -995,7 +1049,6 @@ elif analysis_type == "Batch Prediction":
                                     st.warning(f"Column '{target_column}' not found in dataset. Cannot calculate regression metrics.")
                                     st.info("Showing predictions only.")
                                 
-                                # Detailed Results
                                 st.markdown('<div class="gold-divider"></div>', unsafe_allow_html=True)
                                 st.markdown('<div class="luxury-card"><h3 style="color: #FFD700;">Detailed Results (All Predictions)</h3></div>', unsafe_allow_html=True)
                                 st.dataframe(result_df, use_container_width=True)
