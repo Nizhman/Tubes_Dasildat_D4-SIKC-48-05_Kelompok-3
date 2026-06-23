@@ -10,9 +10,10 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+# Set page config harus di paling atas
 st.set_page_config(
     page_title="Student Performance Prediction System | Luxury Enterprise Edition",
-    page_icon="",
+    page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -112,13 +113,6 @@ def add_luxury_css():
         .gold-header p {
             color: rgba(255,255,255,0.8);
             font-size: 1rem;
-        }
-        
-        .gold-header .subtitle {
-            color: rgba(255,215,0,0.8);
-            font-size: 0.9rem;
-            font-weight: 300;
-            letter-spacing: 1px;
         }
         
         .luxury-badge {
@@ -237,13 +231,6 @@ def add_luxury_css():
             text-align: center;
         }
         
-        .score-histogram {
-            background: rgba(255,255,255,0.05);
-            border-radius: 20px;
-            padding: 1rem;
-            margin: 1rem 0;
-        }
-        
         .team-member {
             color: rgba(255,255,255,0.85);
             font-size: 0.9rem;
@@ -254,12 +241,30 @@ def add_luxury_css():
         .team-member:last-child {
             border-bottom: none;
         }
+        
+        /* Fix untuk Streamlit Cloud */
+        .stAlert {
+            background: rgba(255,215,0,0.1) !important;
+            border: 1px solid rgba(255,215,0,0.3) !important;
+        }
+        
+        .stSelectbox > div > div {
+            background: rgba(255,255,255,0.05) !important;
+            color: white !important;
+        }
+        
+        .stRadio > div {
+            color: rgba(255,255,255,0.8) !important;
+        }
     </style>
     """, unsafe_allow_html=True)
 
 add_luxury_css()
 
-# FEATURE_NAMES untuk model (tanpa kolom target)
+# =====================================================
+# FEATURE NAMES
+# =====================================================
+
 FEATURE_NAMES = [
     "gender",
     "lunch",
@@ -279,15 +284,32 @@ FEATURE_NAMES = [
     "parental level of education_some high school"
 ]
 
+# =====================================================
+# FUNGSI UTILITY
+# =====================================================
+
 def get_model_files():
     """Mendapatkan semua file model .joblib dari folder model"""
     model_folder = "model"
+    
+    # Untuk Streamlit Cloud, cek juga di root directory
     if not os.path.exists(model_folder):
+        # Coba cari di root
+        root_files = glob.glob("*.joblib")
+        if root_files:
+            return root_files
         os.makedirs(model_folder)
         return []
     
     # Cari semua file .joblib di folder model
     joblib_files = glob.glob(os.path.join(model_folder, "*.joblib"))
+    
+    # Jika tidak ada di folder model, coba di root
+    if not joblib_files:
+        root_files = glob.glob("*.joblib")
+        if root_files:
+            return root_files
+    
     return joblib_files
 
 @st.cache_resource
@@ -337,6 +359,10 @@ def prepare_input_data(df, feature_names):
         input_df[col] = pd.to_numeric(input_df[col], errors="coerce")
     
     return input_df
+
+# =====================================================
+# FUNGSI PLOTTING
+# =====================================================
 
 def plot_bar_chart(good_count, bad_count, title="Performance Distribution"):
     fig, ax = plt.subplots(figsize=(6, 5))
@@ -425,7 +451,10 @@ def plot_confusion_matrix_heatmap(cm):
     plt.tight_layout()
     return fig
 
-# Header
+# =====================================================
+# HEADER
+# =====================================================
+
 st.markdown("""
 <div class="gold-header">
     <div class="luxury-badge">PRESENTED BY KELOMPOK 3</div>
@@ -446,7 +475,10 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Sidebar
+# =====================================================
+# SIDEBAR - MODEL LOADING
+# =====================================================
+
 st.sidebar.markdown("""
 <div style="text-align: center; padding: 1rem 0;">
     <div class="luxury-badge">CONTROL CENTER</div>
@@ -455,65 +487,70 @@ st.sidebar.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# =====================================================
-# MODEL LOADING - MENGGUNAKAN load_all_models
-# =====================================================
-
+# Cari file model
 model_files = get_model_files()
 
 if len(model_files) == 0:
-    st.sidebar.warning("Tidak ada model yang ditemukan di folder 'model'.")
+    st.sidebar.warning("⚠️ Tidak ada model yang ditemukan.")
     st.info("""
     **Cara menambahkan model:**
     1. Buat folder 'model' di direktori yang sama
     2. Tempatkan file model .joblib di folder tersebut
-    3. Refresh halaman
+    3. Atau tempatkan file .joblib di root directory
+    4. Refresh halaman
+    
+    **Untuk Streamlit Cloud:**
+    - Pastikan file model sudah di-upload ke repository
+    - File model bisa di folder 'model' atau root
     """)
     st.stop()
 
-# Load semua model sekaligus
+# Load semua model
 all_models = load_all_models(model_files)
 
 if len(all_models) == 0:
-    st.sidebar.error("Gagal memuat semua model. Periksa file model Anda.")
+    st.sidebar.error("❌ Gagal memuat model.")
     st.stop()
 
-# Buat daftar nama model yang akan ditampilkan di dropdown
+# Buat daftar nama model
 model_display_names = []
 for file_path in all_models.keys():
     file_name = os.path.basename(file_path)
-    # Buat nama tampilan yang lebih bersih
     display_name = file_name.replace('.joblib', '').replace('modellb_', 'Model ')
     display_name = display_name.replace('_StudentPerformance', '')
     display_name = display_name.replace('_', ' - ')
     model_display_names.append(display_name)
 
-# Pilih model dari daftar yang tersedia
+# Pilih model
 selected_model_display = st.sidebar.selectbox(
     "Pilih Model Prediksi", 
     model_display_names
 )
 
-# Dapatkan path file yang sesuai
+# Dapatkan model yang dipilih
 selected_index = model_display_names.index(selected_model_display)
 selected_model_path = list(all_models.keys())[selected_index]
 model = all_models[selected_model_path]
 
-# Tampilkan informasi model aktif
+# Tampilkan info model aktif
 st.sidebar.markdown(f"""
 <div class="metric-box">
-    <div style="font-size: 2rem;">✓</div>
+    <div style="font-size: 2rem;">✅</div>
     <div style="color: #FFD700; font-weight: bold;">Model Aktif</div>
     <div style="font-size: 0.7rem; color: rgba(255,255,255,0.6);">{os.path.basename(selected_model_path)}</div>
 </div>
 """, unsafe_allow_html=True)
 
-# Coba dapatkan feature names dari model
+# Dapatkan feature names
 model_features = get_model_feature_names(model)
 if model_features:
-    st.sidebar.info(f"Model membutuhkan {len(model_features)} fitur")
+    st.sidebar.info(f"📊 Model membutuhkan {len(model_features)} fitur")
 
 st.sidebar.markdown('<div class="gold-divider"></div>', unsafe_allow_html=True)
+
+# =====================================================
+# SIDEBAR - ANALYSIS TYPE
+# =====================================================
 
 analysis_type = st.sidebar.radio(
     "Jenis Analisis",
@@ -540,14 +577,12 @@ st.sidebar.markdown("""
 if analysis_type == "Prediksi Manual":
     st.markdown("""
     <div class="luxury-card">
-        <h2 style="color: #FFD700;">Prediksi Individual</h2>
+        <h2 style="color: #FFD700;">🎯 Prediksi Individual</h2>
         <p style="color: rgba(255,255,255,0.7);">Analisis premium untuk evaluasi siswa tunggal</p>
     </div>
     """, unsafe_allow_html=True)
     
-    model_features = get_model_feature_names(model)
-    
-    # Deteksi tipe model (classification atau regression)
+    # Deteksi tipe model
     try:
         test_input = pd.DataFrame([[0.0] * len(model_features)], columns=model_features)
         test_pred = model.predict(test_input)[0]
@@ -556,14 +591,15 @@ if analysis_type == "Prediksi Manual":
         is_classification = True
     
     if is_classification:
-        st.info(f"Tipe Model: Classification (membutuhkan {len(model_features)} fitur)")
-        manual_method = "Classification (Good/Bad Performance)"
+        st.info(f"🧠 Tipe Model: **Classification** (membutuhkan {len(model_features)} fitur)")
+        manual_method = "Classification"
     else:
-        st.info(f"Tipe Model: Regression (membutuhkan {len(model_features)} fitur)")
-        manual_method = "Regression (Score Prediction)"
+        st.info(f"🧠 Tipe Model: **Regression** (membutuhkan {len(model_features)} fitur)")
+        manual_method = "Regression"
     
     st.markdown('<div class="gold-divider"></div>', unsafe_allow_html=True)
     
+    # Input features
     cols = st.columns(3)
     input_data = {}
     
@@ -583,15 +619,15 @@ if analysis_type == "Prediksi Manual":
     
     input_df = pd.DataFrame([input_data])
     
-    if manual_method == "Classification (Good/Bad Performance)":
-        if st.button("Generate Classification Prediction", use_container_width=True):
+    if manual_method == "Classification":
+        if st.button("🔮 Generate Classification Prediction", use_container_width=True):
             try:
                 prediction = model.predict(input_df)[0]
                 
                 if prediction == 1:
                     st.markdown("""
                     <div class="result-good">
-                        <h2 style="color: #FFD700;">GOOD PERFORMANCE</h2>
+                        <h2 style="color: #FFD700;">✅ GOOD PERFORMANCE</h2>
                         <p style="color: rgba(255,255,255,0.9);">Exceptional Academic Excellence Detected</p>
                         <div class="luxury-badge">TOP 10% PERCENTILE</div>
                     </div>
@@ -599,7 +635,7 @@ if analysis_type == "Prediksi Manual":
                 else:
                     st.markdown("""
                     <div class="result-bad">
-                        <h2 style="color: #FF6B6B;">BAD PERFORMANCE</h2>
+                        <h2 style="color: #FF6B6B;">⚠️ BAD PERFORMANCE</h2>
                         <p style="color: rgba(255,255,255,0.9);">Improvement Opportunity Identified</p>
                         <div class="luxury-badge" style="background: linear-gradient(135deg, #FF6B6B, #FF4444);">INTERVENTION RECOMMENDED</div>
                     </div>
@@ -609,7 +645,7 @@ if analysis_type == "Prediksi Manual":
                     proba = model.predict_proba(input_df)[0]
                     
                     st.markdown('<div class="gold-divider"></div>', unsafe_allow_html=True)
-                    st.markdown('<div class="luxury-card"><h3 style="color: #FFD700;">Prediction Probability</h3></div>', unsafe_allow_html=True)
+                    st.markdown('<div class="luxury-card"><h3 style="color: #FFD700;">📊 Prediction Probability</h3></div>', unsafe_allow_html=True)
                     
                     col1, col2 = st.columns(2)
                     
@@ -636,11 +672,11 @@ if analysis_type == "Prediksi Manual":
                         """, unsafe_allow_html=True)
                 
                 st.markdown('<div class="gold-divider"></div>', unsafe_allow_html=True)
-                st.markdown('<div class="luxury-card"><h3 style="color: #FFD700;">Input Data Summary</h3></div>', unsafe_allow_html=True)
+                st.markdown('<div class="luxury-card"><h3 style="color: #FFD700;">📋 Input Data Summary</h3></div>', unsafe_allow_html=True)
                 st.dataframe(input_df, use_container_width=True)
                 
                 st.markdown('<div class="gold-divider"></div>', unsafe_allow_html=True)
-                st.markdown('<div class="luxury-card"><h3 style="color: #FFD700;">Performance Visualization</h3></div>', unsafe_allow_html=True)
+                st.markdown('<div class="luxury-card"><h3 style="color: #FFD700;">📈 Performance Visualization</h3></div>', unsafe_allow_html=True)
                 
                 col_viz1, col_viz2 = st.columns(2)
                 
@@ -660,21 +696,20 @@ if analysis_type == "Prediksi Manual":
                 st.error(f"Error: {e}")
                 st.info("Make sure your model is properly trained and compatible with the input features.")
     
-    elif manual_method == "Regression (Score Prediction)":
-        if st.button("Generate Regression Prediction", use_container_width=True):
+    elif manual_method == "Regression":
+        if st.button("🔮 Generate Regression Prediction", use_container_width=True):
             try:
                 prediction_result = model.predict(input_df)[0]
                 predicted_score = prediction_result
                 
                 st.markdown(f"""
                 <div class="metric-box" style="margin-bottom: 1rem;">
-                    <h3 style="color: #FFD700;">Prediction Output (Scaled Value)</h3>
+                    <h3 style="color: #FFD700;">📊 Prediction Output (Scaled Value)</h3>
                     <div class="stat-number">{predicted_score:.4f}</div>
                     <p style="color: rgba(255,255,255,0.7); margin-top: 0.5rem;">Nilai prediksi dalam skala yang sama dengan data training</p>
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # Tentukan threshold untuk Good/Bad dalam skala scaled
                 threshold = 0
                 
                 if predicted_score >= threshold:
@@ -695,13 +730,12 @@ if analysis_type == "Prediksi Manual":
                     """, unsafe_allow_html=True)
                 
                 st.markdown('<div class="gold-divider"></div>', unsafe_allow_html=True)
-                st.markdown('<div class="luxury-card"><h3 style="color: #FFD700;">Score Analysis</h3></div>', unsafe_allow_html=True)
+                st.markdown('<div class="luxury-card"><h3 style="color: #FFD700;">📊 Score Analysis</h3></div>', unsafe_allow_html=True)
                 
                 col1, col2 = st.columns(2)
                 
                 with col1:
                     bar_color = "#FFD700" if predicted_score >= threshold else "#FF6B6B"
-                    normalized_score = (predicted_score + 3) / 6 * 100 if -3 <= predicted_score <= 3 else 50
                     st.markdown(f"""
                     <div class="metric-box">
                         <h4>Predicted Value (Scaled)</h4>
@@ -730,7 +764,7 @@ if analysis_type == "Prediksi Manual":
                     """, unsafe_allow_html=True)
                 
                 st.markdown('<div class="gold-divider"></div>', unsafe_allow_html=True)
-                st.markdown('<div class="luxury-card"><h3 style="color: #FFD700;">Input Data Summary</h3></div>', unsafe_allow_html=True)
+                st.markdown('<div class="luxury-card"><h3 style="color: #FFD700;">📋 Input Data Summary</h3></div>', unsafe_allow_html=True)
                 st.dataframe(input_df, use_container_width=True)
                 
             except Exception as e:
@@ -744,22 +778,22 @@ if analysis_type == "Prediksi Manual":
 elif analysis_type == "Prediksi Batch":
     st.markdown("""
     <div class="luxury-card">
-        <h2 style="color: #FFD700;">Enterprise Batch Processing</h2>
+        <h2 style="color: #FFD700;">📊 Enterprise Batch Processing</h2>
         <p style="color: rgba(255,255,255,0.7);">Bulk analysis with comprehensive metrics & visualizations</p>
     </div>
     """, unsafe_allow_html=True)
 
-    uploaded_file = st.file_uploader("Upload Dataset (CSV/Excel)", type=["csv", "xlsx", "xls"])
+    uploaded_file = st.file_uploader("📁 Upload Dataset (CSV/Excel)", type=["csv", "xlsx", "xls"])
 
     if uploaded_file is not None:
         try:
             df = read_uploaded_file(uploaded_file)
             
             st.markdown('<div class="gold-divider"></div>', unsafe_allow_html=True)
-            st.markdown('<div class="luxury-card"><h3 style="color: #FFD700;">Dataset Preview</h3></div>', unsafe_allow_html=True)
+            st.markdown('<div class="luxury-card"><h3 style="color: #FFD700;">📋 Dataset Preview</h3></div>', unsafe_allow_html=True)
             st.dataframe(df.head(10), use_container_width=True)
 
-            with st.expander("Dataset Columns Information"):
+            with st.expander("📊 Dataset Columns Information"):
                 st.write("Columns available in dataset:")
                 st.write(list(df.columns))
 
@@ -771,8 +805,6 @@ elif analysis_type == "Prediksi Batch":
             with col3:
                 st.markdown(f'<div class="metric-box"><h4>Active Model</h4><div class="stat-number">{selected_model_display[:15]}</div></div>', unsafe_allow_html=True)
 
-            model_features = get_model_feature_names(model)
-            
             available_features = [col for col in model_features if col in df.columns]
             missing_features = [col for col in model_features if col not in df.columns]
             
@@ -788,10 +820,10 @@ elif analysis_type == "Prediksi Batch":
                     st.error("Missing values detected in input data")
                     st.info("Please clean your dataset by removing rows with missing values.")
                 else:
-                    st.success(f"Validation Passed - {len(available_features)} features matched")
+                    st.success(f"✅ Validation Passed - {len(available_features)} features matched")
                     
-                    if st.button("Execute Analysis", use_container_width=True):
-                        with st.spinner("Processing predictions..."):
+                    if st.button("🚀 Execute Analysis", use_container_width=True):
+                        with st.spinner("🔄 Processing predictions..."):
                             predictions = model.predict(input_df)
                             
                             test_pred = predictions[0]
@@ -814,7 +846,7 @@ elif analysis_type == "Prediksi Batch":
                                 total = good_count + bad_count
                                 
                                 st.markdown('<div class="gold-divider"></div>', unsafe_allow_html=True)
-                                st.markdown('<div class="luxury-card"><h3 style="color: #FFD700;">Performance Visualizations</h3></div>', unsafe_allow_html=True)
+                                st.markdown('<div class="luxury-card"><h3 style="color: #FFD700;">📈 Performance Visualizations</h3></div>', unsafe_allow_html=True)
                                 
                                 col_viz1, col_viz2 = st.columns(2)
                                 
@@ -831,7 +863,7 @@ elif analysis_type == "Prediksi Batch":
                                     st.markdown('</div>', unsafe_allow_html=True)
                                 
                                 st.markdown('<div class="gold-divider"></div>', unsafe_allow_html=True)
-                                st.markdown('<div class="luxury-card"><h3 style="color: #FFD700;">Classification Metrics</h3></div>', unsafe_allow_html=True)
+                                st.markdown('<div class="luxury-card"><h3 style="color: #FFD700;">📊 Classification Metrics</h3></div>', unsafe_allow_html=True)
                                 
                                 if 'performance' in df.columns:
                                     y_true = df['performance'].values
@@ -860,11 +892,11 @@ elif analysis_type == "Prediksi Batch":
                                     st.markdown(f"""
                                     <div style="display: flex; gap: 1rem; justify-content: center; margin: 1rem 0;">
                                         <div class="metric-box" style="flex: 1;">
-                                            <h4>Correct Predictions</h4>
+                                            <h4>✅ Correct Predictions</h4>
                                             <div class="stat-number">{correct_predictions}</div>
                                         </div>
                                         <div class="metric-box" style="flex: 1;">
-                                            <h4>Wrong Predictions</h4>
+                                            <h4>❌ Wrong Predictions</h4>
                                             <div class="stat-number">{wrong_predictions}</div>
                                         </div>
                                     </div>
@@ -908,25 +940,25 @@ elif analysis_type == "Prediksi Batch":
                                     st.info("Column 'performance' not found. Showing predictions only.")
                                 
                                 st.markdown('<div class="gold-divider"></div>', unsafe_allow_html=True)
-                                st.markdown('<div class="luxury-card"><h3 style="color: #FFD700;">Detailed Results</h3></div>', unsafe_allow_html=True)
+                                st.markdown('<div class="luxury-card"><h3 style="color: #FFD700;">📋 Detailed Results</h3></div>', unsafe_allow_html=True)
                                 st.dataframe(result_df, use_container_width=True)
                                 
-                                st.markdown('<div class="luxury-card"><h3 style="color: #FFD700;">Summary Statistics</h3></div>', unsafe_allow_html=True)
+                                st.markdown('<div class="luxury-card"><h3 style="color: #FFD700;">📊 Summary Statistics</h3></div>', unsafe_allow_html=True)
                                 col_sum1, col_sum2, col_sum3, col_sum4 = st.columns(4)
                                 success_rate = (good_count/total*100) if total > 0 else 0
                                 
                                 with col_sum1:
-                                    st.markdown(f'<div class="metric-box"><h4>Good</h4><div class="stat-number">{good_count}</div></div>', unsafe_allow_html=True)
+                                    st.markdown(f'<div class="metric-box"><h4>✅ Good</h4><div class="stat-number">{good_count}</div></div>', unsafe_allow_html=True)
                                 with col_sum2:
-                                    st.markdown(f'<div class="metric-box"><h4>Bad</h4><div class="stat-number">{bad_count}</div></div>', unsafe_allow_html=True)
+                                    st.markdown(f'<div class="metric-box"><h4>❌ Bad</h4><div class="stat-number">{bad_count}</div></div>', unsafe_allow_html=True)
                                 with col_sum3:
-                                    st.markdown(f'<div class="metric-box"><h4>Good %</h4><div class="stat-number">{success_rate:.1f}%</div></div>', unsafe_allow_html=True)
+                                    st.markdown(f'<div class="metric-box"><h4>📈 Good %</h4><div class="stat-number">{success_rate:.1f}%</div></div>', unsafe_allow_html=True)
                                 with col_sum4:
-                                    st.markdown(f'<div class="metric-box"><h4>Total</h4><div class="stat-number">{total}</div></div>', unsafe_allow_html=True)
+                                    st.markdown(f'<div class="metric-box"><h4>📊 Total</h4><div class="stat-number">{total}</div></div>', unsafe_allow_html=True)
                                 
                                 csv = result_df.to_csv(index=False).encode("utf-8")
                                 st.download_button(
-                                    "Export Results to CSV", 
+                                    "📥 Export Results to CSV", 
                                     data=csv, 
                                     file_name=f"prediction_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
                                     mime="text/csv", 
@@ -946,7 +978,7 @@ elif analysis_type == "Prediksi Batch":
                                 total = good_count + bad_count
                                 
                                 st.markdown('<div class="gold-divider"></div>', unsafe_allow_html=True)
-                                st.markdown('<div class="luxury-card"><h3 style="color: #FFD700;">Prediction Results (Scaled Values)</h3></div>', unsafe_allow_html=True)
+                                st.markdown('<div class="luxury-card"><h3 style="color: #FFD700;">📊 Prediction Results (Scaled Values)</h3></div>', unsafe_allow_html=True)
                                 
                                 col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
                                 with col_stat1:
@@ -976,7 +1008,7 @@ elif analysis_type == "Prediksi Batch":
                                 st.pyplot(fig_hist)
                                 
                                 st.markdown('<div class="gold-divider"></div>', unsafe_allow_html=True)
-                                st.markdown('<div class="luxury-card"><h3 style="color: #FFD700;">Regression Metrics</h3></div>', unsafe_allow_html=True)
+                                st.markdown('<div class="luxury-card"><h3 style="color: #FFD700;">📊 Regression Metrics</h3></div>', unsafe_allow_html=True)
                                 
                                 target_column = 'math score'
                                 
@@ -1033,7 +1065,7 @@ elif analysis_type == "Prediksi Batch":
                                         'Difference': np.abs(y_actual[:10] - y_pred_reg[:10])
                                     })
                                     st.markdown('<div class="gold-divider"></div>', unsafe_allow_html=True)
-                                    st.markdown('<div class="luxury-card"><h3 style="color: #FFD700;">Actual vs Predicted (Sample - First 10 rows)</h3></div>', unsafe_allow_html=True)
+                                    st.markdown('<div class="luxury-card"><h3 style="color: #FFD700;">📊 Actual vs Predicted (Sample - First 10 rows)</h3></div>', unsafe_allow_html=True)
                                     st.dataframe(comparison_df, use_container_width=True)
                                     
                                     fig_scatter, ax_scatter = plt.subplots(figsize=(8, 6))
@@ -1059,12 +1091,12 @@ elif analysis_type == "Prediksi Batch":
                                     st.info("Showing predictions only.")
                                 
                                 st.markdown('<div class="gold-divider"></div>', unsafe_allow_html=True)
-                                st.markdown('<div class="luxury-card"><h3 style="color: #FFD700;">Detailed Results (All Predictions)</h3></div>', unsafe_allow_html=True)
+                                st.markdown('<div class="luxury-card"><h3 style="color: #FFD700;">📋 Detailed Results (All Predictions)</h3></div>', unsafe_allow_html=True)
                                 st.dataframe(result_df, use_container_width=True)
                                 
                                 csv = result_df.to_csv(index=False).encode("utf-8")
                                 st.download_button(
-                                    "Export Results to CSV", 
+                                    "📥 Export Results to CSV", 
                                     data=csv, 
                                     file_name=f"prediction_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
                                     mime="text/csv", 
@@ -1073,9 +1105,9 @@ elif analysis_type == "Prediksi Batch":
                             
                             else:
                                 if is_classification:
-                                    st.warning("Model is Classification but you selected Regression Metrics. Please select Classification Metrics in sidebar.")
+                                    st.warning("⚠️ Model is Classification but you selected Regression Metrics. Please select Classification Metrics in sidebar.")
                                 else:
-                                    st.warning("Model is Regression but you selected Classification Metrics. Please select Regression Metrics in sidebar.")
+                                    st.warning("⚠️ Model is Regression but you selected Classification Metrics. Please select Regression Metrics in sidebar.")
                             
         except Exception as e:
             st.error(f"Error processing file: {e}")
